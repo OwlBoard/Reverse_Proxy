@@ -1,21 +1,25 @@
-# Use the official nginx image as the base
-FROM nginx:alpine
+# Reverse Proxy Dockerfile
+# Based on Nginx Alpine for lightweight and secure proxy
 
-# Copy the nginx configuration file
-COPY nginx.conf /etc/nginx/nginx.conf
+FROM nginx:1.27-alpine
 
-# Copy any additional configuration files if needed
-# COPY ssl/ /etc/nginx/ssl/
+# Remove default nginx configuration
+RUN rm /etc/nginx/conf.d/default.conf
+
+# Copy custom nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Create cache directories for improved performance
+RUN mkdir -p /var/cache/nginx/proxy_temp && \
+    mkdir -p /var/cache/nginx/client_temp && \
+    chown -R nginx:nginx /var/cache/nginx
 
 # Expose port 80 for HTTP traffic
 EXPOSE 80
 
-# Add health check (using curl instead of wget for better compatibility)
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost/health || exit 1
+# Health check to ensure nginx is running properly
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1/health || exit 1
 
-# Install curl for health checks
-RUN apk add --no-cache curl
-
-# Start nginx
+# Run nginx in foreground
 CMD ["nginx", "-g", "daemon off;"]
